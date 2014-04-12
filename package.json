@@ -1,0 +1,19 @@
+{
+  "name": "fitbit-twilio-demo",
+  "mod-project-name": "fitbit-twilio-demo",
+  "version": "0.0.2",
+  "private": true,
+  "scripts": {
+    "start": "node app.js"
+  },
+  "dependencies": {
+    "express": "3.4.2",
+    "ejs": "*",
+    "passport": "~0.1.17",
+    "passport-fitbit": "~0.1.2",
+    "oauth": "~0.9.10",
+    "mongoose": "~3.6.20",
+    "twilio": "~1.3.0",
+    "moment": "~2.3.1"
+  }
+}
