@@ -11,6 +11,8 @@ var UserSchema = new Schema({
 	stepsToday: Number,
 	stepsGoal: Number,
 	totalSleepRecords: Number,
+	activeMinutes: Number,
+	isAsleep: Boolean,
 	phoneNumber: String,
 	timezoneOffset: Number
 });

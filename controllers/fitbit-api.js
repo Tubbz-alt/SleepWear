@@ -5,6 +5,7 @@ var fs = require('fs'),
 	Twilio = require('./twilio-api'),
 	moment = require('moment'),
 	env = process.env.NODE_ENV || 'production',
+	five = require("johnny-five"),
 	config = require('../config')[env];
 
 var oauth = new OAuth.OAuth(
@@ -44,7 +45,7 @@ function updateUserSteps(encodedId, callback) {
 					}
 
 					data = JSON.parse(data);
-					console.log("Fitbit Get Activities", data);
+					//console.log("Fitbit Get Activities", data);
 
 					// Update (and return) the user
 					User.findOneAndUpdate(
@@ -52,6 +53,7 @@ function updateUserSteps(encodedId, callback) {
 							encodedId: user.encodedId
 						},
 						{
+							activeMinutes: data.summary.fairlyActiveMinutes + data.summary.veryActiveMinutes,
 							stepsToday: data.summary.steps,
 							stepsGoal: data.goals.steps
 						},
@@ -69,74 +71,89 @@ function updateUserSteps(encodedId, callback) {
 	);
 };
 
-function updateUserSleep(encodedId, callback) {
-	console.log("updateUserSleep for", encodedId);
+// function updateUserSleep(encodedId, callback) {
+// 	console.log("updateUserSleep for", encodedId);
 
-	User.findOne(
-		{
-			'encodedId': encodedId
-		},
-		function(err, user) {
-			if (err) {
-				console.error("Error finding user", err);
-				callback(err);
-				return;
-			}
+// 	User.findOne(
+// 		{
+// 			'encodedId': encodedId
+// 		},
+// 		function(err, user) {
+// 			if (err) {
+// 				console.error("Error finding user", err);
+// 				callback(err);
+// 				return;
+// 			}
 
-			// Get updated steps from Fitbit API
-			oauth.get(
-				'https://api.fitbit.com/1/user/-/sleep/date/' + moment().utc().add('ms', user.timezoneOffset).format('YYYY-MM-DD') + '.json',
-				user.accessToken,
-				user.accessSecret,
-				function (err, data, res) {
-					if (err) {
-						console.error("Error fetching sleep data. ", err);
-						callback(err);
-						return;
-					}
+// 			// Get updated steps from Fitbit API
+// 			oauth.get(
+// 				'https://api.fitbit.com/1/user/-/sleep/date/' + moment().utc().add('ms', user.timezoneOffset).format('YYYY-MM-DD') + '.json',
+// 				user.accessToken,
+// 				user.accessSecret,
+// 				function (err, data, res) {
+// 					if (err) {
+// 						console.error("Error fetching sleep data. ", err);
+// 						callback(err);
+// 						return;
+// 					}
 
-					data = JSON.parse(data);
-					console.log("Fitbit Get Sleep", data);
+// 					data = JSON.parse(data);
+// 					console.log("Fitbit Get Sleep", data.sleep[data.sleep.length-1]);
 
-					// Update (and return) the user
-					User.findOneAndUpdate(
-						{
-							encodedId: user.encodedId
-						},
-						{
-							totalSleepRecords: data.summary.totalSleepRecords
-						},
-						null,
-						function(err, user) {
-							if (err) {
-								console.error("Error updating user sleep activity.", err);
-							}
-							callback(err, user);
-						}
-					);
-				}
-			);
-		}
-	);
-};
+// 					// Update (and return) the user
+// 					User.findOneAndUpdate(
+// 						{
+// 							encodedId: user.encodedId
+// 						},
+// 						{
+// 							isAsleep: data.sleep[data.sleep.length-1].minuteData.value,
+// 							totalSleepRecords: data.summary.totalSleepRecords
+// 						},
+// 						null,
+// 						function(err, user) {
+// 							if (err) {
+// 								console.error("Error updating user sleep activity.", err);
+// 							}
+// 							callback(err, user);
+// 						}
+// 					);
+// 				}
+// 			);
+// 		}
+// 	);
+// };
 
-function totalSleepRecordsCallback(err, user) {
-	if (err) {
-		console.error('totalSleepRecordsCallback error:', err);
-		return;
-	}
+// function totalSleepRecordsCallback(err, user) {
+// 	if (err) {
+// 		console.error('totalSleepRecordsCallback error:', err);
+// 		return;
+// 	}
 
-	var smsBody = '';
+// 	var smsBody = '';
 
-	if (user.totalSleepRecords) {
-		smsBody = 'You have slept ' + user.totalSleepRecords + ' number of times today.';
-	} else {
-		smsBody = 'You have not slept at all today.';
-	}
+// 	if (user.totalSleepRecords) {
+// 		smsBody = 'You have slept ' + user.totalSleepRecords + ' times today.';
 
-	// console.log("Twilio.sendSms", user.phoneNumber, smsBody);
-	Twilio.sendSms(user.phoneNumber, smsBody);
-}
+
+// 		// Turn off the led pulse loop after X seconds (shown in ms)
+// 		var led = five.Led(13);
+// 		led.strobe(1000);
+
+// 		setTimeout(function() {
+// 			led.stop().off();
+// 		}, 1000 * user.totalSleepRecords);
+
+// 	} else {
+// 		smsBody = 'You have not slept at all today.';
+// 	}
+
+// 	//console.log("Twilio.sendSms", user.phoneNumber, smsBody);
+// 	//Twilio.sendSms(user.phoneNumber, smsBody);
+// }
+
+// function map(value, low1, high1, low2, high2) {
+//     return low2 + (high2 - low2) * (value - low1) / (high1 - low1);
+// }
 
 function motivateUserCallback(err, user) {
 	if (err) {
@@ -144,18 +161,40 @@ function motivateUserCallback(err, user) {
 		return;
 	}
 
-	var smsBody = '';
+	var led = new five.Led.RGB([3, 5, 6]);
+	led.off();
 
-	if (user.stepsToday > user.stepsGoal) {
-		smsBody = 'Overachiever! You are ' + (user.stepsToday - user.stepsGoal) + ' over your daily goal of ' + user.stepsGoal + ' steps!';
-	} else {
-		var stepsRemaining = user.stepsGoal - user.stepsToday;
+	console.log('User activity minutes: ' + user.activeMinutes);
 
-		smsBody = 'Keep it up! ' + stepsRemaining + ' to go today.';
+	if (user.activeMinutes > 0) {
+		if (user.activeMinutes < 30) {
+			led.color("#00ff00"); //green
+			console.log("green");
+		}
+		else if(user.activeMinutes > 30 && user.activeMinutes < 60) {
+			led.color("#ffff00"); //yellow
+			console.log("yellow");
+		}
+		else if(user.activeMinutes > 60) {
+			led.color("#ff0000"); //red
+			console.log("red");
+		}
 	}
 
-	// console.log("Twilio.sendSms", user.phoneNumber, smsBody);
-	Twilio.sendSms(user.phoneNumber, smsBody);
+	//led.on();
+	// var smsBody = '';
+
+	// if (user.stepsToday > user.stepsGoal) {
+	// 	smsBody = 'Overachiever! You are ' + (user.stepsToday - user.stepsGoal) + ' over your daily goal of ' + user.stepsGoal + ' steps!';
+	// } else {
+	// 	var stepsRemaining = user.stepsGoal - user.stepsToday;
+
+	// 	smsBody = 'Keep it up! ' + stepsRemaining + ' to go today.';
+	// }
+
+
+	//console.log("Twilio.sendSms", user.phoneNumber, smsBody);
+	//Twilio.sendSms(user.phoneNumber, smsBody);
 }
 
 function notificationsReceived(req, res) {
@@ -179,9 +218,9 @@ function notificationsReceived(req, res) {
 		// ]
 
 		for (var i = 0; i < data.length; i++) {
-			console.log(data[i]);
+			//console.log(data[i]);
 			updateUserSteps(data[i].ownerId, motivateUserCallback);
-			updateUserSleep(data[i].ownerId, totalSleepRecordsCallback);
+			//updateUserSleep(data[i].ownerId, totalSleepRecordsCallback);
 		}
 	});
 };

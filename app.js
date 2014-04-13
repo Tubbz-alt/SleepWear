@@ -10,6 +10,13 @@ var express = require('express'),
 
 var app = express();
 
+var five = require("johnny-five"),
+    board = new five.Board({port: "/dev/tty.HC-06-DevB"});
+
+board.on("ready", function() {
+	console.log('board ready');
+});
+
 // All environments
 app.set('port', process.env.PORT || 3000);
 app.set('views', path.join(__dirname, 'views'));

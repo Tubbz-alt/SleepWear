@@ -1,7 +1,7 @@
 {
-  "name": "fitbit-twilio-demo",
-  "mod-project-name": "fitbit-twilio-demo",
-  "version": "0.0.2",
+  "name": "nasa-fitbit",
+  "mod-project-name": "nasa-fitbit",
+  "version": "0.0.0",
   "private": true,
   "scripts": {
     "start": "node app.js"
@@ -14,6 +14,7 @@
     "oauth": "~0.9.10",
     "mongoose": "~3.6.20",
     "twilio": "~1.3.0",
-    "moment": "~2.3.1"
+    "moment": "~2.3.1",
+    "johnny-five": "~0.7.31"
   }
 }
